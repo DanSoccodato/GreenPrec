@@ -4,7 +4,6 @@ import datetime
 import sys
 import os
 import warnings
-
 # getting the name of the directory
 # where this file is present.
 current = os.path.dirname(os.path.realpath(__file__))
