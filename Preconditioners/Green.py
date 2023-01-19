@@ -7,7 +7,6 @@ import numpy as np
 def Green(H, order_diag, order_offdiag, Verbose, offdiag=False):
     s = "Green preconditioning. Off-diagonal entries: {:}. Diagonal order: {}."\
         .format(offdiag, order_diag)
-    print("Testing git feature")
     if offdiag:
         s += " Off-diagonal order: {}".format(order_offdiag)
     print(s)
