@@ -1,6 +1,6 @@
 import numpy as np
 
-
+# TEST FOR GIT
 def find_cycles_recursive(graph, L, cycle):
     successors = np.nonzero(graph[cycle[-1]])[0]
     if len(cycle) == L:
