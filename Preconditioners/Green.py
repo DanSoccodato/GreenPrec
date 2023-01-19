@@ -1,10 +1,15 @@
 import datetime
 import time
-
 import numpy as np
+import sys
+import os
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
+from Graphs import find_cycles_recursive
 
 
-def Green(H, order_diag, order_offdiag, Verbose, offdiag=False):
+def Green(H, order_diag, order_offdiag, max_length, Verbose, offdiag=False):
     s = "Green preconditioning. Off-diagonal entries: {:}. Diagonal order: {}."\
         .format(offdiag, order_diag)
     if offdiag:
@@ -16,6 +21,7 @@ def Green(H, order_diag, order_offdiag, Verbose, offdiag=False):
     N = len(H)
     order_diag = min(order_diag, N)
     order_offdiag = min(order_offdiag, N)
+    max_length = min(max_length, N)
 
     G0 = np.zeros((N, N), dtype=H.dtype)
 
@@ -40,6 +46,22 @@ def Green(H, order_diag, order_offdiag, Verbose, offdiag=False):
         # print(12* '-~' +' Exiting sum_on_neighbours. Sum is: {:.4f} '.format(Sigma_i)
         #     + 12* '-~' + '\n\n')
 
+        # Sum over loops
+        for length in range(3, max_length + 1):
+            loops = list(find_cycles_recursive(H, length, [i]))
+            for loop in loops:
+                i = loop[0]
+                j = 0
+                prod = 1
+                forbidden_index = []
+
+                while j < len(loop):
+                    forbidden_index.append(loop[j])
+                    prod = prod * H[loop[j], loop[j + 1]] * g_reduced(forbidden_index, loop[j + 1])
+                    j += 1
+
+                prod *= H[loop[-1], i]
+
         G0[i, i] = 1. / (-H[i, i] - Sigma_i)
 
         # Non-diagonal elements
@@ -63,6 +85,10 @@ def Green(H, order_diag, order_offdiag, Verbose, offdiag=False):
 def sum_on_neighbours(H, i, forbidden_neighbours, orderCounter, order):
     sum_ = 0
     forbidden_neighbours[orderCounter - 1] = i
+
+    #TODO
+    # Temporary: find_cycles_recursive can also find neighbours.
+    # Use that instead of get_and_exclude_neighbours()
     neighbours = get_and_exclude_neighbours(H, i, forbidden_neighbours, orderCounter)
 
     # print('considered index: {}\tforbidden_neighbours: {}\tdepth: {}\tneighbour_list: {} '
