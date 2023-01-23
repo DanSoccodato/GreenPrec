@@ -1,6 +1,6 @@
 import numpy as np
 
-# TEST FOR GIT
+
 def find_cycles_recursive(graph, L, cycle):
     successors = np.nonzero(graph[cycle[-1]])[0]
     if len(cycle) == L:
@@ -12,6 +12,46 @@ def find_cycles_recursive(graph, L, cycle):
                 continue
             yield from find_cycles_recursive(graph, L, cycle + [v])
 
+
+def get_and_exclude_neighbours(H, i, index_list, depth):
+    # Get neighbours of i
+    neighbours = np.nonzero(H[i, :])[0]
+
+    # Exclude neighbours in index_list
+    for n in range(0, min(depth, len(index_list))):
+        neighbours = np.delete(neighbours, np.where(neighbours == index_list[n]))
+
+    return neighbours
+
+
+# Adapted from the networkx library, all_symple_paths():
+# https://networkx.org/documentation/stable/_modules/networkx/algorithms/simple_paths.html#all_simple_paths
+def nx_find_simple_paths(G, source, target, cutoff):
+    targets = {target}
+    visited = {source: True}
+    stack = [iter(np.nonzero(G[source])[0])]
+    while stack:
+        children = stack[-1]
+        child = next(children, None)
+        if child is None:
+            stack.pop()
+            visited.popitem()
+        elif len(visited) < cutoff:
+            if child in visited:
+                continue
+            if child in targets and len(visited) != 1:  # Exclude paths of length 2
+                yield list(visited) + [child]
+            visited[child] = True
+            if targets - set(visited.keys()):  # expand stack until find all targets
+                stack.append(iter(np.nonzero(G[child])[0]))
+            else:
+                visited.popitem()
+        else:  # len(visited) == cutoff:
+            for target in (targets & (set(children) | {child})) - set(visited.keys()):
+                if len(list(visited)) != 1:  # Exclude paths of length 2
+                    yield list(visited) + [target]
+            stack.pop()
+            visited.popitem()
 # def find_all_loops(H, length):
 #     temp = []
 #     h = np.copy(H)
