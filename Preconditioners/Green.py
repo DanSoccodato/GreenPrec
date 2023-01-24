@@ -6,18 +6,18 @@ import os
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
-from Graphs import find_cycles_recursive, get_and_exclude_neighbours, nx_find_simple_paths
+from Graphs import find_cycles_recursive, get_and_exclude_neighbours, find_simple_paths
 
 
 def Green(H, max_depth_diag, max_depth_offdiag,
           max_length_diag, max_length_offdiag,
           Verbose, offdiag=False):
+
     s = "Green preconditioning. Off-diagonal entries: {:}. Diagonal order: {}."\
         .format(offdiag, max_depth_diag)
     if offdiag:
         s += " Off-diagonal order: {}".format(max_depth_offdiag)
     print(s)
-
     st = time.time()
 
     N = len(H)
@@ -64,8 +64,7 @@ def Green(H, max_depth_diag, max_depth_offdiag,
                     i_Sigma_j = sum_on_neighbours(H, j, forbidden_neighbours,
                                                   depth, max_depth_offdiag + 1)
                     i_G_jj = 1. / (-H[j, j] - i_Sigma_j)
-                    fact = G0[i, i] * H[i, j] * i_G_jj
-                    G0[i, j] += fact
+                    G0[i, j] += G0[i, i] * H[i, j] * i_G_jj
 
                     # Sum over paths
                     sum_on_paths(H, G0, i, j, max_length_offdiag, max_depth_offdiag)
@@ -75,24 +74,25 @@ def Green(H, max_depth_diag, max_depth_offdiag,
     return G0
 
 
-def sum_on_paths(H, G, i, j, max_length, max_depth):
-    paths = list(nx_find_simple_paths(H, i, j, max_length))
+def sum_on_neighbours(H, i, forbidden_neighbours, depth, max_depth, debug=False):
+    sum_ = 0
+    forbidden_neighbours[depth - 1] = i
 
-    for path in paths:
-        v = path[0]
-        n = 0
-        prod = G[v, v]
+    neighbours = get_and_exclude_neighbours(H, i, forbidden_neighbours, depth)
 
-        forbidden_neighbours = np.empty(max_depth + len(path) - 1, dtype=int)
-        while n < len(path) - 1:
-            forbidden_neighbours[:n + 1] = path[:n + 1]
-            depth = 2 + n
-            k = path[n + 1]
-            sigma = sum_on_neighbours(H, k, forbidden_neighbours, depth, max_depth + n + 1)
-            G_limited = 1. / (-H[k, k] - sigma)
-            prod = prod * H[path[n], k] * G_limited
-            n += 1
-        G[i, j] += prod
+    if debug:
+        print("\ndepth = ", depth, " max_depth = ", max_depth)
+        print('considered index: {}\tforbidden_neighbours: {}\tdepth: {}\tneighbour_list: {} '
+              .format(i, forbidden_neighbours[:depth], depth, neighbours))
+
+    if depth < max_depth and len(neighbours) >= 1:
+        depth += 1
+        for k in neighbours:
+            sum_ += H[i, k] * 1. / (-H[k, k]
+                                    - sum_on_neighbours(H, k, forbidden_neighbours, depth, max_depth, debug)
+                                    ) * H[k, i]
+
+    return sum_
 
 
 def sum_on_loops(H, i, length, max_depth):
@@ -119,25 +119,25 @@ def sum_on_loops(H, i, length, max_depth):
     return sum_
 
 
-def sum_on_neighbours(H, i, forbidden_neighbours, depth, max_depth, debug=False):
-    sum_ = 0
-    forbidden_neighbours[depth - 1] = i
+def sum_on_paths(H, G, i, j, max_length, max_depth):
+    paths = list(find_simple_paths(H, i, j, max_length))
 
-    neighbours = get_and_exclude_neighbours(H, i, forbidden_neighbours, depth)
+    for path in paths:
+        v = path[0]
+        n = 0
+        prod = G[v, v]
 
-    if debug:
-        print("\ndepth = ", depth, " max_depth = ", max_depth)
-        print('considered index: {}\tforbidden_neighbours: {}\tdepth: {}\tneighbour_list: {} '
-              .format(i, forbidden_neighbours[:depth], depth, neighbours))
+        forbidden_neighbours = np.empty(max_depth + len(path) - 1, dtype=int)
+        while n < len(path) - 1:
+            forbidden_neighbours[:n + 1] = path[:n + 1]
+            depth = 2 + n
+            k = path[n + 1]
+            sigma = sum_on_neighbours(H, k, forbidden_neighbours, depth, max_depth + n + 1)
+            G_limited = 1. / (-H[k, k] - sigma)
+            prod = prod * H[path[n], k] * G_limited
+            n += 1
+        G[i, j] += prod
 
-    if depth < max_depth and len(neighbours) >= 1:
-        depth += 1
-        for k in neighbours:
-            sum_ += H[i, k] * 1. / (-H[k, k]
-                                    - sum_on_neighbours(H, k, forbidden_neighbours, depth, max_depth, debug)
-                                    ) * H[k, i]
-
-    return sum_
 
 
 

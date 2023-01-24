@@ -1,21 +1,36 @@
 import numpy as np
 
 
-def find_cycles_recursive(graph, L, cycle):
-    successors = np.nonzero(graph[cycle[-1]])[0]
-    if len(cycle) == L:
-        if cycle[0] in successors:
-            yield cycle
-    elif len(cycle) < L:
-        for v in successors:
-            if v in cycle:
-                continue
-            yield from find_cycles_recursive(graph, L, cycle + [v])
+def get_and_exclude_neighbours(in_, i, index_list, depth):
+    if type(in_) == np.ndarray:
+        return _get_and_exclude_neighbours_dns(in_, i, index_list, depth)
+    else:
+        # TODO: else is too general, find a way to distinguish BlockMat class
+        adj = create_adjacency_matrix(in_)
+        return _get_and_exclude_neighbours_dns(adj, i, index_list, depth)
 
 
-def get_and_exclude_neighbours(H, i, index_list, depth):
+def find_cycles_recursive(in_, L, cycle):
+    if type(in_) == np.ndarray:
+        return _find_cycles_recursive_dns(in_, L, cycle)
+    else:
+        # TODO: else is too general, find a way to distinguish BlockMat class
+        adj = create_adjacency_matrix(in_)
+        return _find_cycles_recursive_dns(adj, L, cycle)
+
+
+def find_simple_paths(in_, source, target, cutoff):
+    if type(in_) == np.ndarray:
+        return _nx_find_simple_paths_dns(in_, source, target, cutoff)
+    # TODO: else is too general, find a way to distinguish BlockMat class
+    else:
+        adj = create_adjacency_matrix(in_)
+        return _nx_find_simple_paths_dns(adj, source, target, cutoff)
+
+
+def _get_and_exclude_neighbours_dns(mat, i, index_list, depth):
     # Get neighbours of i
-    neighbours = np.nonzero(H[i, :])[0]
+    neighbours = np.nonzero(mat[i, :])[0]
 
     # Exclude neighbours in index_list
     for n in range(0, min(depth, len(index_list))):
@@ -24,12 +39,25 @@ def get_and_exclude_neighbours(H, i, index_list, depth):
     return neighbours
 
 
+def _find_cycles_recursive_dns(mat, L, cycle):
+    successors = np.nonzero(mat[cycle[-1]])[0]
+    if len(cycle) == L:
+        if cycle[0] in successors:
+            yield cycle
+    elif len(cycle) < L:
+        for v in successors:
+            if v in cycle:
+                continue
+            yield from _find_cycles_recursive_dns(mat, L, cycle + [v])
+
+
 # Adapted from the networkx library, all_symple_paths():
 # https://networkx.org/documentation/stable/_modules/networkx/algorithms/simple_paths.html#all_simple_paths
-def nx_find_simple_paths(G, source, target, cutoff):
+def _nx_find_simple_paths_dns(mat, source, target, cutoff):
     targets = {target}
     visited = {source: True}
-    stack = [iter(np.nonzero(G[source])[0])]
+    neighbours = iter(np.nonzero(mat[source])[0])
+    stack = [neighbours]
     while stack:
         children = stack[-1]
         child = next(children, None)
@@ -43,7 +71,7 @@ def nx_find_simple_paths(G, source, target, cutoff):
                 yield list(visited) + [child]
             visited[child] = True
             if targets - set(visited.keys()):  # expand stack until find all targets
-                stack.append(iter(np.nonzero(G[child])[0]))
+                stack.append(iter(np.nonzero(mat[child])[0]))
             else:
                 visited.popitem()
         else:  # len(visited) == cutoff:
@@ -52,95 +80,17 @@ def nx_find_simple_paths(G, source, target, cutoff):
                     yield list(visited) + [target]
             stack.pop()
             visited.popitem()
-# def find_all_loops(H, length):
-#     temp = []
-#     h = np.copy(H)
-#     np.fill_diagonal(h, 0.)  # to exclude self-loops
-#
-#     # Use Depth First Search algorithm to find all cycles up to fixed length
-#     for l in range(2, length + 1):
-#         print("Calling find_cycle() for length = ", l)
-#         count, loops_l = find_cycle(h, l)
-#         if count != 0:
-#             for el in loops_l:
-#                 temp.append(el)
-#         print("Done.")
-#
-#     # Perform cyclic permutations
-#     loops = []
-#     for i in range(len(temp)):
-#         if len(temp[i]) > 2:
-#             permutations = cyclic_perm(temp[i])
-#             for perm in permutations:
-#                 loops.append(perm)
-#
-#     # Create dictionary with vertices as keys
-#     groups = {}
-#     for l in sorted(loops):
-#         groups.setdefault(l[0], []).append(l)
-#
-#     return groups
-#
-#
-# # find_cycle() returns loops starting only from one node, we need them starting from every node:
-# # we must perform cyclic permutations
-# def cyclic_perm(a):
-#     n = len(a)
-#     b = [[a[i - j] for i in range(n)] for j in range(n)]
-#     return b
-#
-#
-# def find_cycle(graph, l):
-#     V = len(graph)
-#     loops = []
-#     # all vertex are marked un-visited initially.
-#     marked = [False] * V
-#
-#     # Searching for cycle by using v-l+1 vertices
-#     count = 0
-#     for i in range(V - (l - 1)):
-#         count = DFS(graph, marked, l - 1, i, i, count, [i], loops)
-#
-#         # ith vertex is marked as visited and
-#         # will not be visited again.
-#         marked[i] = True
-#
-#     return (count, loops)
-#
-#
-# def DFS(graph, marked, l, vert, start, count, path, path_collection):
-#     V = len(graph)
-#
-#     # mark the vertex vert as visited
-#     marked[vert] = True
-#
-#     # if the path of length (n-1) is found
-#     if l == 0:
-#
-#         # mark vert as un-visited to make
-#         # it usable again.
-#         marked[vert] = False
-#
-#         # Check if vertex vert can end with
-#         # vertex start
-#         if graph[vert][start] != 0:
-#             count = count + 1
-#             path_collection.append(path)
-#             return count
-#         else:
-#             return count
-#
-#     # For searching every possible path of
-#     # length (n-1)
-#     for i in range(V):
-#         if marked[i] == False and graph[vert][i] != 0:
-#             # DFS for searching path by decreasing
-#             # length by 1
-#             next_path = path[:]
-#             next_path.append(i)
-#             count = DFS(graph, marked, l - 1, i, start, count, next_path, path_collection)
-#
-#     # marking vert as unvisited to make it
-#     # usable again.
-#     marked[vert] = False
-#     return count
+
+
+def create_adjacency_matrix(block_mat):
+
+    Nbl = len(block_mat)
+    ad = np.zeros((Nbl, Nbl))
+
+    for i in range(Nbl):
+        for j in range(Nbl):
+            if np.count_nonzero(block_mat[i, j]) != 0:
+                ad[i, j] = 1.
+
+    np.fill_diagonal(ad, 0.)
+    return ad

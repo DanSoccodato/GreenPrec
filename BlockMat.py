@@ -87,7 +87,7 @@ def fill_blocks(blockmat1, blockmat2, value=None):
     if value is not None:
         for i in range(Nbl):
             for j in range(Nbl):
-                blockmat1[i, j] = value * np.ones(blockmat2[i, j].shape)
+                blockmat1[i, j] = value * np.ones(blockmat2[i, j].shape, dtype=blockmat2[i, j].dtype)
     else:
         for i in range(Nbl):
             for j in range(Nbl):
