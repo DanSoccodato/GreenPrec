@@ -3,6 +3,7 @@ import time
 import numpy as np
 import sys
 import os
+import warnings
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
@@ -13,10 +14,11 @@ def Green(H, max_depth_diag, max_depth_offdiag,
           max_length_diag, max_length_offdiag,
           Verbose, offdiag=False):
 
-    s = "Green preconditioning. Off-diagonal entries: {:}. Diagonal order: {}."\
-        .format(offdiag, max_depth_diag)
+    s = "Green preconditioning. Off-diagonal blocks: {:}.\nDiagonal max_depth: {:}.\tDiagonal max_length: {:}" \
+        .format(offdiag, max_depth_diag, max_length_diag)
     if offdiag:
-        s += " Off-diagonal order: {}".format(max_depth_offdiag)
+        s += "\nOff-diagonal max_depth: {:}.\tOff-diagonal max_length: {:}".format(max_depth_offdiag,
+                                                                                   max_length_offdiag)
     print(s)
     st = time.time()
 
@@ -25,6 +27,14 @@ def Green(H, max_depth_diag, max_depth_offdiag,
     max_depth_offdiag = min(max_depth_offdiag, N)
     max_length_diag = min(max_length_diag, N)
     max_length_offdiag = min(max_length_offdiag, N)
+
+    if max_length_diag < 3:
+        warnings.warn("Parameter max_length_diag set to value < 3, this"
+                      " will have no effect. Consider setting the value to 3 or more.", RuntimeWarning)
+
+    if offdiag and max_length_offdiag < 3:
+        warnings.warn("Parameter max_length_offdiag set to value < 3, this"
+                      " will have no effect. Consider setting the value to 3 or more.", RuntimeWarning)
 
     G0 = np.zeros((N, N), dtype=H.dtype)
 

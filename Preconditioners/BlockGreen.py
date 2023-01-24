@@ -21,10 +21,11 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
                max_length_diag, max_length_offdiag,
                offdiag=False):
 
-    s = "Block-Green preconditioning. Off-diagonal blocks: {:}. Diagonal order: {:}."\
-        .format(offdiag, max_depth_diag)
+    s = "Block-Green preconditioning. Off-diagonal blocks: {:}.\nDiagonal max_depth: {:}.\tDiagonal max_length: {:}"\
+        .format(offdiag, max_depth_diag, max_length_diag)
     if offdiag:
-        s += " Off-diagonal order: {:}".format(max_depth_offdiag)
+        s += "\nOff-diagonal max_depth: {:}.\tOff-diagonal max_length: {:}".format(max_depth_offdiag,
+                                                                                   max_length_offdiag)
     print(s)
     st = time.time()
 
@@ -33,6 +34,14 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
     max_depth_offdiag = min(max_depth_offdiag, Nblocks)
     max_length_diag = min(max_length_diag, Nblocks)
     max_length_offdiag = min(max_length_offdiag, Nblocks)
+
+    if max_length_diag < 3:
+        warnings.warn("Parameter max_length_diag set to value < 3, this"
+                      " will have no effect. Consider setting the value to 3 or more.", RuntimeWarning)
+
+    if offdiag and max_length_offdiag < 3:
+        warnings.warn("Parameter max_length_offdiag set to value < 3, this"
+                      " will have no effect. Consider setting the value to 3 or more.", RuntimeWarning)
 
     G0 = fill_blocks(BlockMat((Nblocks, Nblocks)), H, 0.)
 
