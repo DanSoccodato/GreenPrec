@@ -17,7 +17,7 @@ from BlockMat import BlockMat, fill_blocks
 from Graphs import get_and_exclude_neighbours, find_cycles_recursive, find_simple_paths
 
 
-def BlockGreen(H, max_depth_diag, max_depth_offdiag,
+def BlockGreen(Hbl, max_depth_diag, max_depth_offdiag,
                max_length_diag, max_length_offdiag,
                offdiag=False):
 
@@ -29,7 +29,7 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
     print(s)
     st = time.time()
 
-    Nblocks = len(H)
+    Nblocks = len(Hbl)
     max_depth_diag = min(max_depth_diag, Nblocks)
     max_depth_offdiag = min(max_depth_offdiag, Nblocks)
     max_length_diag = min(max_length_diag, Nblocks)
@@ -43,7 +43,7 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
         warnings.warn("Parameter max_length_offdiag set to value < 3, this"
                       " will have no effect. Consider setting the value to 3 or more.", RuntimeWarning)
 
-    G0 = fill_blocks(BlockMat((Nblocks, Nblocks)), H, 0.)
+    G0 = fill_blocks(BlockMat((Nblocks, Nblocks)), Hbl, 0.)
 
     for i in range(Nblocks):
         # Diagonal blocks
@@ -52,13 +52,13 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
         depth = 1
 
         # Sum over neighbours
-        Sigma_i = sum_on_neighbours(H, i, forbidden_neighbours, depth, max_depth_diag)
+        Sigma_i = sum_on_neighbours(Hbl, i, forbidden_neighbours, depth, max_depth_diag)
 
         # Sum over loops
         for length in range(3, max_length_diag + 1):
-            Sigma_i += sum_on_loops(H, i, length, max_depth_diag)
+            Sigma_i += sum_on_loops(Hbl, i, length, max_depth_diag)
 
-        mat = regularized_inv(-H[i, i] - Sigma_i)
+        mat = regularized_inv(-Hbl[i, i] - Sigma_i)
 
         G0[i, i] += mat
 
@@ -71,16 +71,16 @@ def BlockGreen(H, max_depth_diag, max_depth_offdiag,
                     depth = 2
 
                     # Sum over neighbours
-                    i_Sigma_j = sum_on_neighbours(H, j, forbidden_neighbours,
+                    i_Sigma_j = sum_on_neighbours(Hbl, j, forbidden_neighbours,
                                                   depth, max_depth_offdiag + 1)
 
-                    i_G_jj = regularized_inv(-H[j, j] - i_Sigma_j)
+                    i_G_jj = regularized_inv(-Hbl[j, j] - i_Sigma_j)
                     assert not np.all(G0[i, i] == 0)
-                    mat = np.linalg.multi_dot([G0[i, i], H[i, j], i_G_jj])
+                    mat = np.linalg.multi_dot([G0[i, i], Hbl[i, j], i_G_jj])
                     G0[i, j] += mat
 
                     # Sum over paths
-                    sum_on_paths(H, G0, i, j, max_length_offdiag, max_depth_offdiag)
+                    sum_on_paths(Hbl, G0, i, j, max_length_offdiag, max_depth_offdiag)
 
     en = time.time()
     print('Time passed: {}\n'.format(datetime.timedelta(seconds=en - st)))
